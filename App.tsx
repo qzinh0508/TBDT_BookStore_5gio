@@ -8,7 +8,7 @@ import { View, Text, SafeAreaView, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { TabBar, TabKey } from './components/TabBar';
 import { CartScreen } from './screens/CartScreen';
-import { BOOKS, CART_ITEMS } from './data';
+import { BOOKS, CART_ITEMS, CATEGORIES } from './data';
 import { HomeScreen } from './screens/HomeScreen';
 import { CategoryChips } from './components/CategoryChips';
 import { BookDetailScreen } from './screens/BookDetailScreen';
@@ -17,41 +17,56 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>('cart');
   const [selectedBookId, setSelectedBookId] = useState<number | null>(null);
   const [cartCount, setCartCount] = useState(0);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+
   const selectedBook = BOOKS.find((b) => b.id === selectedBookId) ?? null;
+
+  // Khi chuyển tab thì xóa sách đang chọn để trở về giao diện danh sách
+  const handleTabChange = (tab: TabKey) => {
+    setActiveTab(tab);
+    setSelectedBookId(null);
+  };
 
   return (
     <SafeAreaView style={styles.root}>
       {/* flex:1 -> containing block cho TabBar (position:'absolute') bên dưới */}
       <View style={styles.body}>
-        {activeTab === 'cart' ? (
+
+        {/* BƯỚC 1: Ưu tiên hiển thị Màn hình Chi tiết sách nếu đang có sách được chọn.
+            Nhờ đưa lên đầu, màn hình này sẽ chiếm toàn bộ không gian và KHÔNG bị TabBar che mất thanh "Thêm vào giỏ". */}
+        {selectedBook ? (
+          <BookDetailScreen
+            book={selectedBook}
+            onBack={() => setSelectedBookId(null)}
+            onAddToCart={() => setCartCount((n) => n + 1)}
+          />
+        ) : activeTab === 'cart' ? (
           <CartScreen items={CART_ITEMS} />
         ) : activeTab === 'home' ? (
-          <View style={styles.body}>
-            {selectedBook ? (
-              <BookDetailScreen
-                book={selectedBook}
-                onBack={() => setSelectedBookId(null)}
-                onAddToCart={() => setCartCount((n) => n + 1)}
-              />
-            ) : (
-              <HomeScreen
-                cartCount={cartCount}
-                onPressBook={(id) => setSelectedBookId(id)}
-                onPressCart={() => setActiveTab("cart")}
-              />
-            )}
-          </View>
+          <HomeScreen
+            cartCount={cartCount}
+            onPressBook={(id) => setSelectedBookId(id)}
+            onPressCart={() => setActiveTab("cart")}
+          />
         ) : activeTab === 'category' ? (
-          <view style={styles.categoryContainer}>
+          /* BƯỚC 2: Sửa thẻ <view> thành <View> và truyền đủ props cho CategoryChips */
+          <View style={styles.categoryContainer}>
             <Text style={styles.sectionTitle}>Danh mục</Text>
-            <CategoryChips categories={[]} selectedCategory={''} onSelectCategory={function (category: string): void {
-                  throw new Error('Function not implemented.');
-                } } />
-          </view>
+            <CategoryChips
+              categories={CATEGORIES}
+              selectedCategory={selectedCategory}
+              onSelectCategory={(category) => setSelectedCategory(category)}
+            />
+          </View>
         ) : (
           <Placeholder tab={activeTab} />
         )}
-        <TabBar active={activeTab} onChange={setActiveTab} />
+
+        {/* BƯỚC 3: Chỉ hiển thị TabBar khi KHÔNG xem chi tiết sách */}
+        {!selectedBook && (
+          <TabBar active={activeTab} onChange={handleTabChange} />
+        )}
+
       </View>
       <StatusBar style="auto" />
     </SafeAreaView>
@@ -74,7 +89,8 @@ function Placeholder({ tab }: { tab: TabKey }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#FFFFFF' },
-  body: { flex: 1 },placeholder: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
+  body: { flex: 1 },
+  placeholder: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   placeholderText: { textAlign: 'center', color: '#5B6B7F' },
   sectionTitle: {
     fontSize: 15,
